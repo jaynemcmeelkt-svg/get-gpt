@@ -182,6 +182,38 @@ GET https://api.stripe.com/v1/payment_pages/{cs_id}
 → amount_due 字段确认 0 元
 ```
 
+### 4.6 PayPal 支付 RPA 接口规范
+
+RPA 脚本 `paypal_node_rpa.js` 接收标准 JSON 输入（通过 stdin 注入），其 Payload 格式如下：
+
+```json
+{
+  "checkoutUrl": "https://pay.openai.com/c/pay/cs_live_...",
+  "phone": "+16562701902",
+  "smsApiUrl": "http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY",
+  "cardNumber": "4036570000000000",
+  "cardExpiry": "12/27",
+  "cardCvv": "123",
+  "proxy": "socks5://YOUR_PROXY_GATEWAY_HOST:port",
+  "headless": false,
+  "profileDir": "C:/Users/.../AppData/Local/Temp/paypal_rpa_xxxx",
+  "timeoutMs": 600000,
+  "otpTimeoutMs": 180000,
+  "expectedDueCents": 0
+}
+```
+
+**输出响应格式（stdout JSON）：**
+
+```json
+{
+  "success": true,
+  "state": "succeeded",
+  "finalUrl": "https://chatgpt.com/#pricing",
+  "error": ""
+}
+```
+
 ---
 
 ## 5. 代理方案

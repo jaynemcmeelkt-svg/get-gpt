@@ -61,10 +61,17 @@ pip install curl_cffi httpx fastapi uvicorn pydantic python-dotenv playwright py
 
 ```powershell
 cd XYAutoPro
-# GUI 控制台（推荐）
+# 1. 启动 GUI 控制台进行自动化注册（推荐）
 python gui_launcher.py
-# CLI 多进程
+
+# 2. 或者使用 CLI 命令行进行多进程注册
 python launcher.py --count 3 --interval 20
+
+# 3. 注册成功后，运行 PayPal 自动支付流水线（自动生成长链并完成 PayPal 扣款）
+python tools/do_paypal_pay.py
+
+# 4. 或者针对已注册账号进行交互式 PayPal 支付
+python tools/pay_registered_paypal.py
 ```
 
 #### 方案 B：FastAPI + Web 前端
