@@ -1,0 +1,12 @@
+{
+  "provider": "smsbower",
+  "api_key": "YOUR_SMS_BOWER_API_KEY",
+  "service": "dr",
+  "country": "",
+  "preferred_countries": [],
+  "min_price": 0.001,
+  "max_price": 0.05,
+  "otp_timeout_seconds": 180,
+  "otp_retry_attempts": 10,
+  "phone_exception": "35191,35196"
+}

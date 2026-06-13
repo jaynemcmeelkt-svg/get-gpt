@@ -1,0 +1,8 @@
+{
+  "_comment": "PayPal 接码号码库，格式: +号码|接码API_URL，每行一个。脚本启动时自动同步到 DB paypal_phone 表",
+  "phones": [
+    "+10000000001|http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY"
+  ],
+  "otp_timeout_seconds": 180,
+  "otp_poll_interval_seconds": 3
+}

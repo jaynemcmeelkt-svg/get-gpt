@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# 数据库与运行时数据
+*.db
+*.db-shm
+*.db-wal
+data/phone_records.db*
+data/z_session_*.json
+runs/run_*/
+tmp/*.log
+tmp/*.png
+tmp/cpa_*.json
+
+# 凭据与会话
+*.session
+*.token
+session.json
+*_session_*.json
+phone_register_result*.json
+
+# Node / Web
+node_modules/
+web/dist/
+.npm/
+.pnpm-store/
+
+# IDE
+.vscode/
+.idea/
+.arts/
+.bitfun/
+.codeartsdoer/
+
+# 系统
+Thumbs.db
+.DS_Store
+*.swp
+
+# 备份与压缩包
+*.zip
+*.7z
+*.bak
+
+# 临时调试
+tmp/_*.py
+TMP/

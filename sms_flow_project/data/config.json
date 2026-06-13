@@ -1,0 +1,56 @@
+{
+  "flow_type": "register",
+  "gui_config": {
+    "login_headless": false,
+    "oauth_headless": true,
+    "auto_detect_geo": true,
+    "locale": "en-US",
+    "timezone": "America/New_York"
+  },
+  "proxy_config": {
+    "mode": "api",
+    "api_url": "https://YOUR_PROXY_API_HOST/api/ProxyLogic/Generate?Num=1&Country=JP&session=YOUR_SESSION_ID&Server=as&Format=0&Crc=YOUR_PROXY_CRC&Pool=2&KeyName=YOUR_PROXY_KEY_NAME&GenType=socks5&AppSecret=YOUR_APP_SECRET",
+    "api_urls": [
+      "https://YOUR_PROXY_API_HOST/api/ProxyLogic/Generate?Num=1&Country=JP&session=YOUR_SESSION_ID&Server=as&Format=0&Crc=YOUR_PROXY_CRC&Pool=2&KeyName=YOUR_PROXY_KEY_NAME&GenType=socks5&AppSecret=YOUR_APP_SECRET"
+    ],
+    "strategy": "fixed",
+    "static_proxy": ""
+  },
+  "sms_config": {
+    "gpt_sms": {
+      "provider": "smsbower",
+      "api_key": "YOUR_API_KEY",
+      "service": "dr",
+      "country": "colombia",
+      "preferred_countries": [],
+      "min_price": 0.01,
+      "max_price": 0.05,
+      "activation_id": null,
+      "otp_timeout_seconds": 180,
+      "otp_retry_attempts": 10
+    },
+    "paypal_sms": {
+      "provider": "yihao",
+      "mode": "fixed",
+      "api_key": "YOUR_API_KEY",
+      "service": "",
+      "otp_timeout_seconds": 180,
+      "fixed_config": {
+        "phone": "",
+        "sms_url": "+10000000001|http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY",
+        "sms_urls": [
+          "+10000000001|http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY",
+          "+10000000002|http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY",
+          "+10000000003|http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY",
+          "+10000000004|http://YOUR_PAYPAL_SMS_PROVIDER_URL/api/get_sms?key=YOUR_API_KEY"
+        ],
+        "strategy": "random"
+      }
+    }
+  },
+  "account_config": {
+    "email": "",
+    "password": "",
+    "phone": ""
+  }
+}

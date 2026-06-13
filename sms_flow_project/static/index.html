@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GET-GPT 协议流一键控制台</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 本地引入 -->
+  <script src="/js/vue.global.prod.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Fira Code', 'JetBrains Mono', monospace;
+    }
+    [v-cloak] {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div id="app" class="container mx-auto p-4 max-w-7xl" v-cloak>
+    <!-- 顶部状态栏 -->
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 mb-6 border-b border-slate-200 gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-amber-600 font-bold text-xl">$</span>
+          <h1 class="text-2xl font-bold tracking-wider text-slate-900">GET-GPT CONTROL</h1>
+          <span class="text-xs bg-amber-500/10 text-amber-600 border border-amber-500/30 px-2 py-0.5 rounded">v2.0-Professional</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">ChatGPT 手机号注册登录 // 协议直连模式智能管理后台</p>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <!-- 导航选项卡 -->
+        <nav class="flex space-x-1 bg-slate-200/60 p-1 rounded-lg border border-slate-355 text-sm">
+          <button 
+            @click="activeTab = 'monitor'" 
+            :class="activeTab === 'monitor' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/30'"
+            class="px-4 py-1.5 rounded-md transition duration-150">
+            📊 执行与监控
+          </button>
+          <button 
+            @click="activeTab = 'config'" 
+            :class="activeTab === 'config' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/30'"
+            class="px-4 py-1.5 rounded-md transition duration-150">
+            ⚙️ 参数配置
+          </button>
+          <button 
+            @click="activeTab = 'database'" 
+            :class="activeTab === 'database' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/30'"
+            class="px-4 py-1.5 rounded-md transition duration-150">
+            🗄️ 账号资产库
+          </button>
+        </nav>
+
+        <div class="hidden md:flex items-center gap-2 text-sm bg-white border border-slate-200 p-2 rounded-lg shadow-sm">
+          <span class="text-slate-500">服务状态:</span>
+          <span :class="backendConnected ? 'text-emerald-600' : 'text-rose-600'" class="font-bold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" :class="backendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
+            {{ backendConnected ? '已连接' : '已断开' }}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab 1: 执行与监控 -->
+    <main v-if="activeTab === 'monitor'" class="space-y-6">
+      <!-- 统计卡片与快速操作 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- 快速运行控制 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between gap-4">
+          <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">快速运行控制</div>
+          <div class="flex gap-2">
+            <button 
+              @click="executeFlow" 
+              :disabled="running || !backendConnected" 
+              class="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-100 disabled:text-slate-400 text-slate-950 font-bold py-2 px-3 rounded text-sm transition duration-150 flex items-center justify-center gap-1.5 shadow-sm">
+              <svg v-if="running" class="animate-spin h-4 w-4 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ running ? '执行中' : '▶ 启动协议流' }}
+            </button>
+            <button 
+              v-if="lastRunResult && lastRunResult.run_id" 
+              @click="executeOAuth" 
+              :disabled="oauthRunning" 
+              class="bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-100 disabled:text-slate-400 text-slate-950 font-bold py-2 px-3 rounded text-sm transition duration-150 flex items-center justify-center gap-1.5 shadow-sm">
+              🔐 Codex授权
+            </button>
+          </div>
+        </div>
+
+        <!-- 成功率 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">运行成功率</div>
+            <div class="text-2xl font-bold mt-1" :class="stats.success_rate >= 80 ? 'text-emerald-600' : 'text-amber-600'">
+              {{ stats.success_rate }}%
+            </div>
+          </div>
+          <div class="text-slate-200 text-3xl font-bold">%</div>
+        </div>
+
+        <!-- 总运行次数 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">运行总数</div>
+            <div class="text-2xl font-bold text-slate-800 mt-1">{{ stats.total }} 次</div>
+          </div>
+          <div class="text-slate-200 text-3xl font-bold">∑</div>
+        </div>
+
+        <!-- 失败数 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">执行失败统计</div>
+            <div class="text-2xl font-bold text-rose-600 mt-1">{{ stats.failed }} 次</div>
+          </div>
+          <div class="text-rose-100 text-3xl font-bold">✗</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 运行历史列表 -->
+        <div class="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col">
+          <div class="flex justify-between items-center border-b border-slate-100 pb-2 mb-4">
+            <h2 class="text-base font-bold text-slate-900 uppercase tracking-wider">历史运行记录</h2>
+            <button @click="fetchRuns" class="text-xs text-slate-500 hover:text-slate-800">🔄 刷新列表</button>
+          </div>
+          <div class="overflow-y-auto max-h-[460px] border border-slate-200 rounded-lg">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-55 text-slate-600 border-b border-slate-200">
+                  <th class="p-2.5">创建时间</th>
+                  <th class="p-2.5">类型</th>
+                  <th class="p-2.5">状态</th>
+                  <th class="p-2.5">手机号</th>
+                  <th class="p-2.5">邮箱</th>
+                  <th class="p-2.5">日志</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-700">
+                <tr v-if="runs.length === 0">
+                  <td colspan="6" class="p-6 text-center text-slate-400">暂无任何历史执行记录</td>
+                </tr>
+                <tr 
+                  v-for="run in runs" 
+                  :key="run.run_id" 
+                  @click="selectRun(run)"
+                  :class="selectedRunId === run.run_id ? 'bg-amber-500/10 border-l-2 border-l-amber-500' : 'hover:bg-slate-50'"
+                  class="cursor-pointer transition">
+                  <td class="p-2.5 font-mono text-slate-500">{{ formatTime(run.created_at) }}</td>
+                  <td class="p-2.5 font-semibold">
+                    <span :class="run.flow_type === 'register' ? 'text-cyan-600' : 'text-purple-600'">
+                      {{ run.flow_type === 'register' ? '注册' : '登录' }}
+                    </span>
+                  </td>
+                  <td class="p-2.5">
+                    <span :class="getRunStatusClass(run.status)" class="px-1.5 py-0.5 rounded text-[10px] font-bold">
+                      {{ run.status.toUpperCase() }}
+                    </span>
+                  </td>
+                  <td class="p-2.5 text-slate-800">{{ run.phone_used || '-' }}</td>
+                  <td class="p-2.5 text-slate-600 truncate max-w-[120px]" :title="run.email_used">{{ run.email_used || '-' }}</td>
+                  <td class="p-2.5">
+                    <button class="text-amber-600 hover:text-amber-700 underline font-bold">查看</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 详细日志/错误查看终端 -->
+        <div class="lg:col-span-5 flex flex-col bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <div class="flex justify-between items-center border-b border-slate-100 pb-2 mb-4">
+            <h2 class="text-base font-bold text-slate-900 uppercase tracking-wider">
+              详细日志与报错审计
+            </h2>
+            <button @click="clearLog" class="text-xs text-slate-500 hover:text-slate-800">清屏</button>
+          </div>
+          
+          <div class="flex-1 flex flex-col bg-slate-50 border border-slate-200 rounded-lg overflow-hidden min-h-[300px]">
+            <div class="bg-slate-200/60 px-3 py-1.5 text-[10px] text-slate-600 flex justify-between items-center border-b border-slate-200">
+              <span class="font-semibold text-slate-855">
+                {{ selectedRunId ? `Run ID: ${selectedRunId}` : '当前执行监控终端' }}
+              </span>
+              <span class="text-slate-500 font-bold">LOG READER</span>
+            </div>
+            <div class="p-3 overflow-y-auto flex-1 text-xs leading-relaxed max-h-[360px] font-mono text-slate-800">
+              <div v-if="running" class="flex items-center gap-2 text-amber-600 font-semibold mb-2">
+                <span class="w-2 h-2 bg-amber-500 rounded-full animate-ping"></span>
+                新流程已拉起，协议逻辑正在后台异步执行中，请稍候...
+              </div>
+              <pre class="whitespace-pre-wrap break-all text-slate-800" v-if="logOutput">{{ logOutput }}</pre>
+              <div v-else class="text-slate-400 text-center py-16">
+                请在左侧列表中点击具体运行记录，即可在此调取详细的运行错误审计报告及底层异常堆栈。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 常见错误原因审计汇总 -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h2 class="text-base font-bold text-rose-600 border-b border-slate-100 pb-2 mb-4 uppercase tracking-wider">
+          常见错误根因统计与归类
+        </h2>
+        <div v-if="Object.keys(stats.errors).length === 0" class="text-slate-400 text-sm text-center py-4">
+          暂无失败错误统计数据。
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div v-for="(count, err) in stats.errors" :key="err" class="flex items-center justify-between bg-slate-50 border border-slate-200 p-2.5 rounded-lg hover:border-rose-300">
+            <span class="text-rose-700 truncate mr-4">✗ {{ err }}</span>
+            <span class="bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full border border-rose-200 font-bold shrink-0">
+              触发 {{ count }} 次
+            </span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Tab 2: 参数配置 -->
+    <main v-if="activeTab === 'config'" class="space-y-6">
+      <div class="flex justify-between items-center bg-white border border-slate-200 rounded-xl px-5 py-3 shadow-sm">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">配置管理器</h2>
+          <p class="text-xs text-slate-500 mt-0.5">更改将长效保存在服务器端配置文件 [data/config.json] 中</p>
+        </div>
+        <div class="flex gap-2">
+          <button 
+            @click="loadConfigFromServer" 
+            class="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-semibold px-4 py-1.5 rounded text-xs transition duration-150">
+            重新加载
+          </button>
+          <button 
+            @click="saveConfigToServer" 
+            class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-5 py-1.5 rounded text-xs transition duration-150 shadow-sm">
+            💾 保存当前配置
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <!-- 配置项左栏 -->
+        <div class="md:col-span-6 space-y-6">
+          <!-- 账号预设参数 -->
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1.5">1. 账号预设参数</h3>
+            <div class="grid grid-cols-1 gap-3 text-xs">
+              <div>
+                <label class="block text-slate-500 mb-1 font-semibold">默认电子邮箱</label>
+                <input v-model="form.account_config.email" type="text" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 focus:outline-none focus:bg-white focus:border-amber-500 text-slate-800 placeholder-slate-400" placeholder="如 alias@yourdomain.com" />
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-semibold">默认登录密码 (留空将自动生成高强度随机密码)</label>
+                <input v-model="form.account_config.password" type="text" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 focus:outline-none focus:bg-white focus:border-amber-500 text-slate-800 placeholder-slate-400" placeholder="如果不指定，将自动生成强密码" />
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-semibold">默认手机号码 (仅在登录分支生效)</label>
+                <input v-model="form.account_config.phone" type="text" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 focus:outline-none focus:bg-white focus:border-amber-500 text-slate-800 placeholder-slate-400" placeholder="如 1234567890 (纯数字，登录分支必填)" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 代理参数设置 -->
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1.5">2. 代理网络配置</h3>
+            <div class="text-xs space-y-3">
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 text-slate-700 cursor-pointer font-semibold">
+                  <input v-model="form.proxy_config.mode" type="radio" value="api" class="accent-amber-500" />
+                  动态获取 (API模式)
+                </label>
+                <label class="flex items-center gap-2 text-slate-700 cursor-pointer font-semibold">
+                  <input v-model="form.proxy_config.mode" type="radio" value="static" class="accent-amber-500" />
+                  静态代理 (直连模式)
+                </label>
+              </div>
+
+              <!-- 代理 IP 提取池列表 -->
+              <div v-if="form.proxy_config.mode === 'api'" class="space-y-2">
+                <div class="flex justify-between items-center">
+                  <label class="block text-slate-500 font-semibold">代理 IP 提取 API 链接池</label>
+                  <button @click="addProxyUrl" class="text-[10px] text-amber-600 hover:text-amber-700 font-bold border border-amber-250 px-2 py-0.5 rounded bg-amber-50/50">➕ 添加链接</button>
+                </div>
+                
+                <div v-for="(url, index) in form.proxy_config.api_urls" :key="index" class="flex gap-2 items-center">
+                  <input v-model="form.proxy_config.api_urls[index]" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:bg-white focus:border-amber-500 text-slate-800 text-xs placeholder-slate-400" placeholder="提取 API 链接..." />
+                  <button @click="removeProxyUrl(index)" class="text-rose-600 hover:text-rose-700 text-xs px-2 py-1 border border-rose-200 rounded bg-rose-50" :disabled="form.proxy_config.api_urls.length <= 1">删除</button>
+                </div>
+
+                <div class="flex gap-4 items-center pt-1.5 border-t border-slate-100">
+                  <label class="text-[11px] text-slate-500 font-semibold">后端提取策略:</label>
+                  <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input v-model="form.proxy_config.strategy" type="radio" value="fixed" class="accent-amber-500" />
+                    固定使用 (首选)
+                  </label>
+                  <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input v-model="form.proxy_config.strategy" type="radio" value="random" class="accent-amber-500" />
+                    随机使用
+                  </label>
+                </div>
+              </div>
+
+              <div v-if="form.proxy_config.mode === 'static'">
+                <label class="block text-slate-500 mb-1 font-semibold">静态代理地址 (支持 socks5/socks5h/http)</label>
+                <input v-model="form.proxy_config.static_proxy" type="text" class="w-full bg-slate-55 border border-slate-200 rounded px-3 py-2 focus:outline-none focus:bg-white focus:border-amber-500 text-slate-800 placeholder-slate-400" placeholder="如 socks5h://user:pass@host:port" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 环境与无头 -->
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1.5">3. 运行环境与区域设定</h3>
+            
+            <div class="text-xs">
+              <label class="flex items-center gap-1.5 cursor-pointer text-slate-700 font-semibold mb-3">
+                <input v-model="form.gui_config.auto_detect_geo" type="checkbox" class="accent-amber-500 rounded" />
+                基于代理 IP 自动定位区域与时区 (推荐)
+              </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="block text-slate-500 mb-1 font-semibold">浏览器区域 (Locale)</label>
+                <input 
+                  v-model="form.gui_config.locale" 
+                  type="text" 
+                  :disabled="form.gui_config.auto_detect_geo"
+                  :placeholder="form.gui_config.auto_detect_geo ? '自动获取 (代理 IP 归属)' : '如 en-US'"
+                  :class="form.gui_config.auto_detect_geo ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 border-slate-200 focus:bg-white text-slate-800'"
+                  class="w-full border rounded px-3 py-2 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-semibold">浏览器时区 (Timezone)</label>
+                <input 
+                  v-model="form.gui_config.timezone" 
+                  type="text" 
+                  :disabled="form.gui_config.auto_detect_geo"
+                  :placeholder="form.gui_config.auto_detect_geo ? '自动获取 (代理 IP 时区)' : '如 America/New_York'"
+                  :class="form.gui_config.auto_detect_geo ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 border-slate-200 focus:bg-white text-slate-800'"
+                  class="w-full border rounded px-3 py-2 focus:outline-none" />
+              </div>
+              <div class="col-span-2 flex gap-4 pt-2 border-t border-slate-100">
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                  <input v-model="form.gui_config.login_headless" type="checkbox" class="accent-amber-500 rounded" />
+                  注册/登录无浏览器界面 (Headless)
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                  <input v-model="form.gui_config.oauth_headless" type="checkbox" class="accent-amber-500 rounded" />
+                  OAuth无界面运行 (Headless)
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 配置项右栏 -->
+        <div class="md:col-span-6 space-y-6">
+          <!-- OpenAI GPT 接码服务商 -->
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+              <h3 class="text-sm font-bold text-slate-800">4. OpenAI GPT 接码设置</h3>
+              <div class="flex items-center gap-2">
+                <button 
+                  @click="testSmsKey('gpt_sms')" 
+                  :disabled="testingKeyGpt"
+                  class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-amber-600 text-[10px] px-2.5 py-1 rounded transition font-bold">
+                  {{ testingKeyGpt ? '验证中...' : '测试接码 Key' }}
+                </button>
+                <button 
+                  v-if="smsTestResults.gpt_sms && smsTestResults.gpt_sms.ok"
+                  @click="syncSmsGoods('gpt_sms')" 
+                  :disabled="syncingGoodsGpt"
+                  class="bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white text-[10px] px-2.5 py-1 rounded transition font-bold">
+                  {{ syncingGoodsGpt ? '同步中...' : '同步数据' }}
+                </button>
+              </div>
+            </div>
+            
+            <div class="text-xs space-y-3">
+              <!-- Key 余额回显 -->
+              <div v-if="smsTestResults.gpt_sms && smsTestResults.gpt_sms.ok" class="p-2.5 bg-slate-55 border border-slate-200 rounded-lg space-y-2 shadow-inner">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-500">测试结果:</span>
+                  <span class="text-emerald-600 font-bold">{{ smsTestResults.gpt_sms.balance }}</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-slate-500 mb-1 font-semibold">服务商平台</label>
+                  <select v-model="form.sms_config.gpt_sms.provider" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800">
+                    <option value="smsbower">SmsBower</option>
+                    <option value="smsactivate">Sms-Activate</option>
+                    <option value="herosms">HeroSMS</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-500 mb-1 font-semibold">商品代码 (Service)</label>
+                  <input v-model="form.sms_config.gpt_sms.service" type="text" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800" placeholder="默认 dr" />
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-slate-500 mb-1 font-semibold">接码 API 密钥 (Token/Key)</label>
+                <input v-model="form.sms_config.gpt_sms.api_key" type="password" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 placeholder-slate-400 text-slate-800" placeholder="请输入接码平台 API 密钥" />
+              </div>
+              
+              <div class="grid grid-cols-1 gap-3">
+                <div>
+                  <div class="flex justify-between items-center mb-1">
+                    <label class="text-slate-500 font-semibold">国家选择 (Country)</label>
+                    <span class="text-[9px] text-slate-450">(印尼为6)</span>
+                  </div>
+                  <!-- 有 API 数据时展示下拉选择框 -->
+                  <select v-if="smsTestResults.gpt_sms && smsTestResults.gpt_sms.goods && smsTestResults.gpt_sms.goods.length > 0" 
+                          v-model="form.sms_config.gpt_sms.country" 
+                          @change="onGptCountryChange"
+                          class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800">
+                    <option v-for="g in smsTestResults.gpt_sms.goods" :key="g.id" :value="g.id">
+                      [{{ g.id }}] {{ g.name }} (最低: {{ g.min_price }} // 可用数: {{ g.total_count }})
+                    </option>
+                  </select>
+                  <!-- 没有 API 数据时显示普通输入框 -->
+                  <input v-else 
+                         v-model="form.sms_config.gpt_sms.country" 
+                         type="text" 
+                         class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800" 
+                         placeholder="如 6 (印尼) 或者测试Key后下拉选择" />
+                </div>
+                
+                <!-- 价格区间 -->
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-slate-500 mb-1 font-semibold">最低价格 (RUB/USD)</label>
+                    <input v-model="form.sms_config.gpt_sms.min_price" type="number" step="0.1" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 placeholder-slate-400 text-slate-800" placeholder="不限" />
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 mb-1 font-semibold">最高价格 (RUB/USD)</label>
+                    <input v-model="form.sms_config.gpt_sms.max_price" type="number" step="0.1" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 placeholder-slate-400 text-slate-800" placeholder="不限" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PayPal 一浩接码服务商 -->
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+              <h3 class="text-sm font-bold text-slate-800">5. PayPal 一浩接码设置</h3>
+              <div class="flex items-center gap-2">
+                <button 
+                  @click="testSmsKey('paypal_sms')" 
+                  :disabled="testingKeyPaypal"
+                  class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-cyan-600 text-[10px] px-2.5 py-1 rounded transition font-bold">
+                  {{ testingKeyPaypal ? '验证中...' : '测试一浩 Key' }}
+                </button>
+                <button 
+                  v-if="smsTestResults.paypal_sms && smsTestResults.paypal_sms.ok"
+                  @click="syncSmsGoods('paypal_sms')" 
+                  :disabled="syncingGoodsPaypal"
+                  class="bg-cyan-600 hover:bg-cyan-700 border border-cyan-700 text-white text-[10px] px-2.5 py-1 rounded transition font-bold">
+                  {{ syncingGoodsPaypal ? '同步中...' : '同步数据' }}
+                </button>
+              </div>
+            </div>
+            
+            <div class="text-xs space-y-3">
+              <!-- 一浩 Key 余额回显 -->
+              <div v-if="smsTestResults.paypal_sms && smsTestResults.paypal_sms.ok" class="p-2.5 bg-slate-55 border border-slate-200 rounded-lg space-y-2 shadow-inner">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-500">账户余额:</span>
+                  <span class="text-emerald-600 font-bold">{{ smsTestResults.paypal_sms.balance }}</span>
+                </div>
+              </div>
+
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 text-slate-700 cursor-pointer font-semibold">
+                  <input v-model="form.sms_config.paypal_sms.mode" type="radio" value="temp" class="accent-amber-500" />
+                  API 下单 (临时号码)
+                </label>
+                <label class="flex items-center gap-2 text-slate-700 cursor-pointer font-semibold">
+                  <input v-model="form.sms_config.paypal_sms.mode" type="radio" value="fixed" class="accent-amber-500" />
+                  手动拉取 (固定号码)
+                </label>
+              </div>
+
+              <!-- 临时号码 -->
+              <div v-if="form.sms_config.paypal_sms.mode === 'temp'" class="space-y-3">
+                <div>
+                  <label class="block text-slate-500 mb-1 font-semibold">一浩 API Key (Authorization Bearer)</label>
+                  <input v-model="form.sms_config.paypal_sms.api_key" type="password" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 placeholder-slate-400 text-slate-800" placeholder="请输入一浩 API Token" />
+                </div>
+                <div>
+                  <label class="block text-slate-500 mb-1 font-semibold">商品 ID (Goods ID)</label>
+                  <!-- 有 API 数据时展示下拉选择框 -->
+                  <select v-if="smsTestResults.paypal_sms && smsTestResults.paypal_sms.goods && smsTestResults.paypal_sms.goods.length > 0" 
+                          v-model="form.sms_config.paypal_sms.service" 
+                          class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800">
+                    <option v-for="g in smsTestResults.paypal_sms.goods" :key="g.id" :value="g.id">
+                      [{{ g.id }}] {{ g.name }} - ${{ g.cost }} (国家: {{ g.country }})
+                    </option>
+                  </select>
+                  <!-- 没有 API 数据时显示普通输入框 -->
+                  <input v-else 
+                         v-model="form.sms_config.paypal_sms.service" 
+                         type="text" 
+                         class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 placeholder-slate-400 text-slate-800" 
+                         placeholder="如 12-1-7 (或测试Key并同步数据后选择)" />
+                </div>
+              </div>
+
+              <!-- 固定号码 -->
+              <div v-if="form.sms_config.paypal_sms.mode === 'fixed'" class="space-y-3">
+                <div>
+                  <label class="block text-slate-500 mb-1 font-semibold">特定固定号码 (Phone)</label>
+                  <input v-model="form.sms_config.paypal_sms.fixed_config.phone" type="text" class="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-800" placeholder="填写分配的美国电话" />
+                </div>
+                
+                <div class="space-y-2 border-t border-slate-100 pt-2">
+                  <div class="flex justify-between items-center">
+                    <label class="block text-slate-500 font-semibold">短信提取 API 链接池</label>
+                    <button @click="addSmsUrl" class="text-[10px] text-amber-600 hover:text-amber-700 font-bold border border-amber-250 px-2 py-0.5 rounded bg-amber-50/50">➕ 添加链接</button>
+                  </div>
+                  
+                  <div v-for="(url, index) in form.sms_config.paypal_sms.fixed_config.sms_urls" :key="index" class="flex gap-2 items-center">
+                    <input v-model="form.sms_config.paypal_sms.fixed_config.sms_urls[index]" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:bg-white focus:border-amber-500 text-slate-800 text-xs placeholder-slate-400" placeholder="http://..." />
+                    <button @click="removeSmsUrl(index)" class="text-rose-600 hover:text-rose-700 text-xs px-2 py-1 border border-rose-200 rounded bg-rose-50" :disabled="form.sms_config.paypal_sms.fixed_config.sms_urls.length <= 1">删除</button>
+                  </div>
+
+                  <div class="flex gap-4 items-center pt-1.5">
+                    <label class="text-[11px] text-slate-500 font-semibold">后端轮询策略:</label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                      <input v-model="form.sms_config.paypal_sms.fixed_config.strategy" type="radio" value="fixed" class="accent-amber-500" />
+                      固定使用 (首选)
+                    </label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                      <input v-model="form.sms_config.paypal_sms.fixed_config.strategy" type="radio" value="random" class="accent-amber-500" />
+                      随机使用
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Tab 3: 账号资产库 -->
+    <main v-if="activeTab === 'database'" class="space-y-6">
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-3 mb-4 gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 uppercase tracking-wider">
+              SQLite 数据库已存资产列表
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">每次运行成功生成的 ChatGPT 账号信息均会持久化保存在该表中</p>
+          </div>
+          
+          <div class="flex gap-2 w-full md:w-auto shrink-0">
+            <!-- 搜索框 -->
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="🔍 检索邮箱或手机号..." 
+              class="bg-slate-55 border border-slate-250 rounded px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-amber-500 w-full md:w-56 shadow-inner" />
+            
+            <button 
+              @click="fetchAccounts" 
+              :disabled="loadingAccounts" 
+              class="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-750 text-white text-xs px-3.5 py-1.5 rounded transition font-bold shrink-0 shadow-sm">
+              {{ loadingAccounts ? '刷新中...' : '🔄 刷新列表' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 表格区域 -->
+        <div class="overflow-x-auto border border-slate-200 rounded-lg">
+          <table class="w-full text-left text-sm border-collapse bg-white">
+            <thead>
+              <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 text-xs uppercase tracking-wider">
+                <th class="p-3">注册手机号</th>
+                <th class="p-3">关联电子邮箱</th>
+                <th class="p-3">账户密码</th>
+                <th class="p-3">Access Token (点击复制)</th>
+                <th class="p-3">Session Token</th>
+                <th class="p-3">OAuth Refresh Token (Codex)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-xs font-mono text-slate-700">
+              <tr v-if="filteredAccounts.length === 0">
+                <td colspan="6" class="p-8 text-center text-slate-400">
+                  {{ loadingAccounts ? '数据加载中...' : '未检索到符合条件的账号资产记录。' }}
+                </td>
+              </tr>
+              <tr v-for="acc in filteredAccounts" :key="acc.phone" class="hover:bg-slate-50 transition">
+                <td class="p-3 font-semibold text-slate-900">{{ acc.phone }}</td>
+                <td class="p-3 text-slate-800">{{ acc.email || '-' }}</td>
+                <td class="p-3 text-slate-600">{{ acc.password || '-' }}</td>
+                <td class="p-3">
+                  <span v-if="acc.access_token" @click="copyToken(acc.access_token, 'Access Token')" 
+                        class="text-amber-600 hover:text-amber-700 cursor-pointer border-b border-dashed border-amber-500/40 pb-0.5">
+                    {{ truncateToken(acc.access_token) }}
+                  </span>
+                  <span class="text-slate-400" v-else>-</span>
+                </td>
+                <td class="p-3">
+                  <span v-if="acc.session_token" @click="copyToken(acc.session_token, 'Session Token')" 
+                        class="text-cyan-600 hover:text-cyan-700 cursor-pointer border-b border-dashed border-cyan-555/40 pb-0.5">
+                    {{ truncateToken(acc.session_token) }}
+                  </span>
+                  <span class="text-slate-400" v-else>-</span>
+                </td>
+                <td class="p-3">
+                  <span v-if="acc.refresh_token" @click="copyToken(acc.refresh_token, 'Refresh Token')" 
+                        class="text-purple-600 hover:text-purple-700 cursor-pointer border-b border-dashed border-purple-400/40 pb-0.5">
+                    {{ truncateToken(acc.refresh_token) }}
+                  </span>
+                  <span class="text-slate-400" v-else>-</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- 弹窗通知 -->
+    <div v-if="toast.show" 
+         :class="toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'"
+         class="fixed bottom-6 right-6 px-4 py-3 rounded-lg border shadow-xl flex items-center gap-2 text-xs transition duration-300 z-50">
+      <span>{{ toast.message }}</span>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted, watch, computed } = Vue;
+
+    createApp({
+      setup() {
+        const activeTab = ref('monitor');
+        const searchQuery = ref('');
+
+        // 全局配置表单 (从后端 config.json 获取并保存)
+        const form = ref({
+          flow_type: 'register',
+          gui_config: {
+            login_headless: false,
+            oauth_headless: true,
+            auto_detect_geo: true,
+            locale: 'en-US',
+            timezone: 'America/New_York'
+          },
+          proxy_config: {
+            mode: 'api',
+            api_url: '',
+            api_urls: [],
+            strategy: 'fixed',
+            static_proxy: ''
+          },
+          sms_config: {
+            gpt_sms: {
+              provider: 'smsbower',
+              api_key: '',
+              service: 'dr',
+              country: '6',
+              preferred_countries: [],
+              min_price: null,
+              max_price: null,
+              activation_id: null
+            },
+            paypal_sms: {
+              provider: 'yihao',
+              mode: 'temp',
+              api_key: '',
+              service: '',
+              fixed_config: {
+                phone: '',
+                sms_url: '',
+                sms_urls: [],
+                strategy: 'fixed'
+              }
+            }
+          },
+          account_config: {
+            email: '',
+            password: '',
+            phone: ''
+          }
+        });
+
+        // 状态定义
+        const backendConnected = ref(false);
+        const running = ref(false);
+        const oauthRunning = ref(false);
+        const statusText = ref('IDLE');
+        const logOutput = ref('');
+        const lastRunResult = ref(null);
+        const lastRunId = ref('');
+        
+        // Key 验证状态
+        const testingKeyGpt = ref(false);
+        const testingKeyPaypal = ref(false);
+        const syncingGoodsGpt = ref(false);
+        const syncingGoodsPaypal = ref(false);
+        const smsTestResults = ref({
+          gpt_sms: { ok: false, balance: '', goods: [] },
+          paypal_sms: { ok: false, balance: '', goods: [] }
+        });
+
+        // 数据定义
+        const accounts = ref([]);
+        const loadingAccounts = ref(false);
+        const runs = ref([]);
+        const selectedRunId = ref('');
+        const stats = ref({
+          total: 0,
+          success: 0,
+          failed: 0,
+          success_rate: 0,
+          errors: {}
+        });
+
+        // Toast 状态
+        const toast = ref({
+          show: false,
+          message: '',
+          type: 'success'
+        });
+
+        const showToast = (message, type = 'success') => {
+          toast.value.message = message;
+          toast.value.type = type;
+          toast.value.show = true;
+          setTimeout(() => {
+            toast.value.show = false;
+          }, 3000);
+        };
+
+        // 池子操作函数
+        const addProxyUrl = () => {
+          if (!form.value.proxy_config.api_urls) {
+            form.value.proxy_config.api_urls = [];
+          }
+          form.value.proxy_config.api_urls.push('');
+        };
+
+        const removeProxyUrl = (index) => {
+          form.value.proxy_config.api_urls.splice(index, 1);
+        };
+
+        const addSmsUrl = () => {
+          if (!form.value.sms_config.paypal_sms.fixed_config.sms_urls) {
+            form.value.sms_config.paypal_sms.fixed_config.sms_urls = [];
+          }
+          form.value.sms_config.paypal_sms.fixed_config.sms_urls.push('');
+        };
+
+        const removeSmsUrl = (index) => {
+          form.value.sms_config.paypal_sms.fixed_config.sms_urls.splice(index, 1);
+        };
+
+        // HTTP 获取
+        const request = async (url, options = {}) => {
+          const defaultHeaders = { 'Content-Type': 'application/json' };
+          try {
+            const response = await fetch(url, { headers: defaultHeaders, ...options });
+            if (!response.ok) {
+              const errBody = await response.json().catch(() => ({}));
+              throw new Error(errBody.detail || response.statusText || '请求错误');
+            }
+            return await response.json();
+          } catch (e) {
+            throw e;
+          }
+        };
+
+        // 获取并加载后端配置
+        const loadConfigFromServer = async () => {
+          try {
+            const serverConfig = await request('/api/config');
+            if (serverConfig && Object.keys(serverConfig).length > 0) {
+              // 深度合并覆盖本地默认值
+              Object.assign(form.value, serverConfig);
+              
+              // 兼容老配置，确保 api_urls 是非空数组
+              if (!form.value.proxy_config.api_urls || form.value.proxy_config.api_urls.length === 0) {
+                form.value.proxy_config.api_urls = [form.value.proxy_config.api_url || ''];
+              }
+              if (!form.value.sms_config.paypal_sms.fixed_config.sms_urls || form.value.sms_config.paypal_sms.fixed_config.sms_urls.length === 0) {
+                form.value.sms_config.paypal_sms.fixed_config.sms_urls = [form.value.sms_config.paypal_sms.fixed_config.sms_url || ''];
+              }
+              
+              // 确保包含 auto_detect_geo 默认值
+              if (form.value.gui_config.auto_detect_geo === undefined) {
+                form.value.gui_config.auto_detect_geo = true;
+              }
+
+              // 兼容价格区间字段
+              if (form.value.sms_config.gpt_sms.min_price === undefined) {
+                form.value.sms_config.gpt_sms.min_price = null;
+              }
+
+              backendConnected.value = true;
+            }
+          } catch (e) {
+            backendConnected.value = false;
+            showToast('获取服务器端配置失败', 'error');
+          }
+        };
+
+        // 保存配置到后端
+        const saveConfigToServer = async () => {
+          try {
+            // 在保存前，把 api_urls[0] 赋值给 api_url，sms_urls[0] 赋值给 sms_url，以保证向下兼容性
+            if (form.value.proxy_config.api_urls && form.value.proxy_config.api_urls.length > 0) {
+              form.value.proxy_config.api_url = form.value.proxy_config.api_urls[0];
+            }
+            if (form.value.sms_config.paypal_sms.fixed_config.sms_urls && form.value.sms_config.paypal_sms.fixed_config.sms_urls.length > 0) {
+              form.value.sms_config.paypal_sms.fixed_config.sms_url = form.value.sms_config.paypal_sms.fixed_config.sms_urls[0];
+            }
+
+            await request('/api/config', {
+              method: 'POST',
+              body: JSON.stringify(form.value)
+            });
+            showToast('配置已长效保存至后端 data/config.json');
+            backendConnected.value = true;
+          } catch (e) {
+            showToast('保存配置文件到后端失败', 'error');
+          }
+        };
+
+        // 测试接码 Key
+        const testSmsKey = async (type) => {
+          const smsConf = form.value.sms_config[type];
+          if (!smsConf.api_key) {
+            showToast('测试前请先填写 API 密钥！', 'error');
+            return;
+          }
+
+          if (type === 'gpt_sms') testingKeyGpt.value = true;
+          else testingKeyPaypal.value = true;
+
+          try {
+            const res = await request('/api/sms/test', {
+              method: 'POST',
+              body: JSON.stringify({
+                provider: smsConf.provider,
+                api_key: smsConf.api_key,
+                service: smsConf.service || 'dr'
+              })
+            });
+            smsTestResults.value[type].ok = true;
+            smsTestResults.value[type].balance = res.balance;
+            console.log(`[Test Key] Success for ${type}:`, smsTestResults.value[type]);
+            showToast('密钥验证成功！可以进行商品数据同步');
+          } catch (e) {
+            smsTestResults.value[type].ok = false;
+            smsTestResults.value[type].balance = '';
+            smsTestResults.value[type].goods = [];
+            console.error(`[Test Key] Error for ${type}:`, e);
+            showToast(`验证失败: ${e.message || e}`, 'error');
+          } finally {
+            if (type === 'gpt_sms') testingKeyGpt.value = false;
+            else testingKeyPaypal.value = false;
+          }
+        };
+
+        // 当表单中 OpenAI GPT 国家选择改变时，自动同步设置价格区间为该国最新的价格区间
+        const onGptCountryChange = () => {
+          const countryId = form.value.sms_config.gpt_sms.country;
+          if (countryId && smsTestResults.value.gpt_sms && smsTestResults.value.gpt_sms.goods) {
+            const matched = smsTestResults.value.gpt_sms.goods.find(g => g.id === countryId);
+            if (matched) {
+              form.value.sms_config.gpt_sms.min_price = matched.min_price;
+              form.value.sms_config.gpt_sms.max_price = matched.max_price;
+              showToast(`已选择国家: ${matched.name}，已自动设定价格区间为 [${matched.min_price} - ${matched.max_price}]`);
+            }
+          }
+        };
+
+        // 同步接码平台商品/国家数据
+        const syncSmsGoods = async (type) => {
+          const smsConf = form.value.sms_config[type];
+          if (!smsConf.api_key) {
+            showToast('同步前请先填写 API 密钥！', 'error');
+            return;
+          }
+
+          if (type === 'gpt_sms') syncingGoodsGpt.value = true;
+          else syncingGoodsPaypal.value = true;
+
+          try {
+            const res = await request('/api/sms/sync', {
+              method: 'POST',
+              body: JSON.stringify({
+                provider: smsConf.provider,
+                api_key: smsConf.api_key,
+                service: smsConf.service || 'dr'
+              })
+            });
+            
+            // 直接以属性突变赋值，触发 Vue3 的 Proxy 深度追踪
+            smsTestResults.value[type].goods = res.goods || [];
+            smsTestResults.value[type].ok = true;
+            
+            console.log(`[Sync Goods] Success for ${type}:`, smsTestResults.value[type]);
+            showToast('商品与定价数据同步成功！');
+          } catch (e) {
+            smsTestResults.value[type].goods = [];
+            console.error(`[Sync Goods] Error for ${type}:`, e);
+            showToast(`同步数据失败: ${e.message || e}`, 'error');
+          } finally {
+            if (type === 'gpt_sms') syncingGoodsGpt.value = false;
+            else syncingGoodsPaypal.value = false;
+          }
+        };
+
+        // 数据拉取
+        const fetchRuns = async () => {
+          try {
+            const data = await request('/api/runs');
+            runs.value = data;
+            
+            // 同时刷新统计数据
+            const s = await request('/api/runs/stats');
+            stats.value = s;
+          } catch (e) {
+            console.error('获取历史记录失败:', e);
+          }
+        };
+
+        const fetchAccounts = async () => {
+          loadingAccounts.value = true;
+          try {
+            const data = await request('/api/accounts');
+            accounts.value = data;
+            backendConnected.value = true;
+          } catch (e) {
+            backendConnected.value = false;
+          } finally {
+            loadingAccounts.value = false;
+          }
+        };
+
+        // 选择并调取运行日志记录
+        const selectRun = async (run) => {
+          selectedRunId.value = run.run_id;
+          logOutput.value = `[INFO] 正在拉取运行记录 ${run.run_id} 的状态详情...\n\n`;
+          
+          try {
+            const detail = await request(`/api/runs/${run.run_id}/log`);
+            logOutput.value = `[运行记录状态审计]\n`;
+            logOutput.value += `创建时间: ${formatTime(run.created_at)}\n`;
+            logOutput.value += `更新时间: ${formatTime(run.updated_at)}\n`;
+            logOutput.value += `运行类型: ${run.flow_type === 'register' ? '协议注册' : '协议登录'}\n`;
+            logOutput.value += `运行状态: ${run.status.toUpperCase()}\n`;
+            logOutput.value += `手机号码: ${run.phone_used || '-'}\n`;
+            logOutput.value += `关联邮箱: ${run.email_used || '-'}\n`;
+            logOutput.value += `使用代理: ${run.proxy_used || '-'}\n\n`;
+            logOutput.value += `[审计报告/调试报错输出]:\n`;
+            logOutput.value += JSON.stringify(detail, null, 2);
+          } catch (e) {
+            logOutput.value = `[ERROR] 获取日志详情失败: ${e.message || e}`;
+          }
+        };
+
+        const clearLog = () => {
+          logOutput.value = '';
+          selectedRunId.value = '';
+        };
+
+        // 启动协议流
+        const executeFlow = async () => {
+          // 运行前先静默保存一次配置，确保以最新界面配置执行
+          await saveConfigToServer();
+
+          running.value = true;
+          statusText.value = 'RUNNING';
+          logOutput.value = `[START] 开始启动执行协议流程...\n`;
+          lastRunResult.value = null;
+          lastRunId.value = '';
+
+          try {
+            const result = await request('/api/flow/run', {
+              method: 'POST',
+              body: JSON.stringify(form.value)
+            });
+
+            lastRunResult.value = result;
+            lastRunId.value = result.run_id || '';
+            statusText.value = 'SUCCESS';
+            logOutput.value += `\n[SUCCESS] 运行成功结束!\n\n服务器返回包凭证:\n${JSON.stringify(result, null, 2)}`;
+            showToast('协议任务执行成功！');
+            await fetchRuns();
+            await fetchAccounts();
+          } catch (e) {
+            statusText.value = 'FAILED';
+            logOutput.value += `\n[FAILED] 执行失败, 错误堆栈:\n${e.message || e}`;
+            showToast(`执行失败: ${e.message || e}`, 'error');
+            await fetchRuns();
+          } finally {
+            running.value = false;
+          }
+        };
+
+        const executeOAuth = async () => {
+          if (!lastRunResult.value) return;
+          oauthRunning.value = true;
+          statusText.value = 'OAUTH_RUNNING';
+          logOutput.value += `\n\n[OAuth] 开始换取 Codex OAuth 令牌...`;
+
+          try {
+            const result = await request('/api/flow/oauth', {
+              method: 'POST',
+              body: JSON.stringify({
+                req: form.value,
+                login_result: lastRunResult.value
+              })
+            });
+
+            statusText.value = 'SUCCESS';
+            logOutput.value += `\n\n[SUCCESS] Codex OAuth 换取 Refresh Token 成功!\n${JSON.stringify(result, null, 2)}`;
+            showToast('OAuth 令牌获取成功！');
+            await fetchRuns();
+            await fetchAccounts();
+          } catch (e) {
+            statusText.value = 'FAILED';
+            logOutput.value += `\n\n[FAILED] OAuth 授权失败:\n${e.message || e}`;
+            showToast(`OAuth 失败: ${e.message || e}`, 'error');
+            await fetchRuns();
+          } finally {
+            oauthRunning.value = false;
+          }
+        };
+
+        // 数据过滤
+        const filteredAccounts = computed(() => {
+          if (!searchQuery.value) return accounts.value;
+          const q = searchQuery.value.toLowerCase().trim();
+          return accounts.value.filter(acc => {
+            return (acc.phone && acc.phone.includes(q)) || 
+                   (acc.email && acc.email.toLowerCase().includes(q));
+          });
+        });
+
+        // 格式化与助手
+        const truncateToken = (token) => {
+          if (!token) return '';
+          if (token.length <= 16) return token;
+          return token.substring(0, 10) + '...' + token.substring(token.length - 8);
+        };
+
+        const copyToken = (token, name) => {
+          navigator.clipboard.writeText(token).then(() => {
+            showToast(`${name} 已成功复制到剪贴板`);
+          }).catch(() => {
+            showToast('浏览器限制，复制失败，请手动选择复制', 'error');
+          });
+        };
+
+        const formatTime = (timeStr) => {
+          if (!timeStr) return '-';
+          try {
+            const d = new Date(timeStr);
+            return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+          } catch (e) {
+            return timeStr;
+          }
+        };
+
+        const getRunStatusClass = (status) => {
+          switch (status) {
+            case 'success': return 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+            case 'failed': return 'bg-rose-50 text-rose-600 border border-rose-200';
+            case 'running': return 'bg-amber-50 text-amber-600 border border-amber-200 animate-pulse';
+            default: return 'bg-slate-100 text-slate-500';
+          }
+        };
+
+        onMounted(async () => {
+          // 初始化加载
+          await loadConfigFromServer();
+          await fetchRuns();
+          await fetchAccounts();
+        });
+
+        return {
+          activeTab,
+          searchQuery,
+          form,
+          backendConnected,
+          running,
+          oauthRunning,
+          statusText,
+          logOutput,
+          lastRunResult,
+          lastRunId,
+          testingKeyGpt,
+          testingKeyPaypal,
+          smsTestResults,
+          accounts,
+          loadingAccounts,
+          runs,
+          selectedRunId,
+          stats,
+          toast,
+          addProxyUrl,
+          removeProxyUrl,
+          addSmsUrl,
+          removeSmsUrl,
+          loadConfigFromServer,
+          saveConfigToServer,
+          testSmsKey,
+          onGptCountryChange,
+          syncingGoodsGpt,
+          syncingGoodsPaypal,
+          syncSmsGoods,
+          fetchRuns,
+          fetchAccounts,
+          selectRun,
+          clearLog,
+          executeFlow,
+          executeOAuth,
+          filteredAccounts,
+          truncateToken,
+          copyToken,
+          formatTime,
+          getRunStatusClass
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

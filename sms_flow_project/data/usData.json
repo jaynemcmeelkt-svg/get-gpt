@@ -1,0 +1,28 @@
+{
+  "states": {
+    "OR": {
+      "name": {
+        "en": "Oregon"
+      },
+      "area_codes": [503, 971, 541, 458]
+    },
+    "DE": {
+      "name": {
+        "en": "Delaware"
+      },
+      "area_codes": [302]
+    },
+    "MT": {
+      "name": {
+        "en": "Montana"
+      },
+      "area_codes": [406]
+    },
+    "NH": {
+      "name": {
+        "en": "New Hampshire"
+      },
+      "area_codes": [603]
+    }
+  }
+}

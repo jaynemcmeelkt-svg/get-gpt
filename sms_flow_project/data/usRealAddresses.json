@@ -1,0 +1,20 @@
+{
+  "states_available": ["OR", "DE", "MT", "NH"],
+  "data": {
+    "OR": [
+      {"street": "5616 Se Knight St", "city": "Portland", "zip": "97206", "county": "Multnomah"},
+      {"street": "1200 SW Morrison St", "city": "Portland", "zip": "97205", "county": "Multnomah"},
+      {"street": "820 SW 2nd Ave", "city": "Portland", "zip": "97204", "county": "Multnomah"}
+    ],
+    "DE": [
+      {"street": "1201 N Market St", "city": "Wilmington", "zip": "19801", "county": "New Castle"},
+      {"street": "200 Continental Dr", "city": "Newark", "zip": "19713", "county": "New Castle"}
+    ],
+    "MT": [
+      {"street": "101 E Front St", "city": "Missoula", "zip": "59802", "county": "Missoula"}
+    ],
+    "NH": [
+      {"street": "100 Main St", "city": "Nashua", "zip": "03060", "county": "Hillsborough"}
+    ]
+  }
+}
