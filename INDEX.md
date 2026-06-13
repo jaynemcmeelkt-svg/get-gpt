@@ -71,7 +71,7 @@
 |------|------|
 | `data/` | SQLite 数据库（`phone_records.db`）和 z_session 缓存 |
 | `runs/` | 注册任务运行记录（每次注册一个 `run_YYYYMMDD_HHMMSS_xxxxxx/`） |
-| `tmp/` | 临时测试脚本目录 |
+| `tmp/` | 临时测试脚本与 RPA 运行日志目录（包含 `rpa_*.log` 日志及 `rpa_artifacts/` 截图等） |
 
 ---
 

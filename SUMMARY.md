@@ -15,6 +15,8 @@
 7. [配置说明](#7-配置说明)
 8. [使用示例](#8-使用示例)
 9. [常见问题](#9-常见问题)
+10. [三种 checkout_ui_mode 对比](#10-三种-checkout_ui_mode-对比)
+11. [地区/币种映射](#11-地区币种映射)
 
 ---
 
@@ -363,7 +365,7 @@ python tools/gen_stripe_url.py --phone +573113106370 # 指定账号
 python tools/gen_stripe_url.py --strict-zero         # 非 0 元时 exit(4)
 ```
 
-### 8.4 启动 FastAPI 后端 + 前端
+### 8.6 启动 FastAPI 后端 + 前端
 
 ```powershell
 .\start-dev.bat
@@ -371,7 +373,7 @@ python tools/gen_stripe_url.py --strict-zero         # 非 0 元时 exit(4)
 # → 前端: http://localhost:5173
 ```
 
-### 8.5 浏览器控制台快捷生成（不依赖代理）
+### 8.7 浏览器控制台快捷生成（不依赖代理）
 
 打开 `https://chatgpt.com/` → F12 → Console：
 
